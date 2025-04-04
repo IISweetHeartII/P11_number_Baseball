@@ -27,3 +27,14 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# 상위 디렉토리의 다른 프로젝트들
+../CAU_Software_Engineering02_11/
+../umc-8th-web-reborn/
+
+# 일반적인 Node.js 프로젝트 무시 파일들
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
