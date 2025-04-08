@@ -1,33 +1,21 @@
 import React from 'react';
-import { GameState } from '../hooks/useGame';
 
 interface GameHistoryProps {
-  gameState: GameState;
+  history: Array<{ guess: string; result: string }>;
 }
 
-const GameHistory: React.FC<GameHistoryProps> = ({ gameState }) => {
+const GameHistory: React.FC<GameHistoryProps> = ({ history }) => {
   return (
-    <div className="game-history">
-      <h2>게임 기록</h2>
-      <p>정답: {gameState.gameStatus !== 'playing' ? gameState.answer.join('') : '???'}</p>
-      {gameState.gameId && (
-        <div className="share-info">
-          <p>친구와 함께 플레이하려면 아래 링크를 공유하세요:</p>
-          <input 
-            type="text" 
-            value={`${window.location.origin}?gameId=${gameState.gameId}`} 
-            readOnly 
-          />
-          <button 
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}?gameId=${gameState.gameId}`);
-              alert('링크가 클립보드에 복사되었습니다!');
-            }}
-          >
-            링크 복사
-          </button>
-        </div>
-      )}
+    <div className="mt-4 p-4 bg-white rounded-lg shadow-md">
+      <h3 className="text-lg font-semibold mb-2">게임 기록</h3>
+      <div className="space-y-2">
+        {history.map((item, index) => (
+          <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+            <span className="font-medium">{item.guess}</span>
+            <span className="text-blue-600">{item.result}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '../services/firebase';
-import { collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, where, serverTimestamp } from 'firebase/firestore';
 
 export type GameStatus = 'playing' | 'win' | 'lose';
 export type GameResult = { strike: number; ball: number };
@@ -13,10 +13,9 @@ export interface GameState {
   gameStatus: GameStatus;
   message: string;
   gameId?: string;
-  playerName?: string;
 }
 
-export const useGame = (gameId?: string, playerName?: string) => {
+export const useGame = (gameId?: string) => {
   const [gameState, setGameState] = useState<GameState>({
     answer: [],
     userInput: '',
@@ -24,12 +23,11 @@ export const useGame = (gameId?: string, playerName?: string) => {
     attempts: 0,
     gameStatus: 'playing',
     message: '1~9 사이의 서로 다른 3자리 숫자를 입력하세요.',
-    gameId,
-    playerName
+    gameId
   });
 
   // 게임 초기화 함수
-  const initializeGame = async () => {
+  const initializeGame = useCallback(async () => {
     // 1~9 사이의 서로 다른 3자리 숫자 생성
     const numbers = Array.from({ length: 9 }, (_, i) => i + 1);
     const shuffled = [...numbers].sort(() => 0.5 - Math.random());
@@ -54,8 +52,7 @@ export const useGame = (gameId?: string, playerName?: string) => {
         const gameRef = await addDoc(collection(db, 'games'), {
           answer: newAnswer,
           createdAt: serverTimestamp(),
-          status: 'playing',
-          players: playerName ? [playerName] : []
+          status: 'playing'
         });
         
         setGameState(prev => ({
@@ -66,7 +63,7 @@ export const useGame = (gameId?: string, playerName?: string) => {
         console.error('Error creating game:', error);
       }
     }
-  };
+  }, [gameId, gameState]);
 
   // 게임 시작 시 초기화
   useEffect(() => {
@@ -91,7 +88,7 @@ export const useGame = (gameId?: string, playerName?: string) => {
       
       return () => unsubscribe();
     }
-  }, [gameId]);
+  }, [gameId, initializeGame]);
 
   // 사용자 입력 처리
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,8 +181,7 @@ export const useGame = (gameId?: string, playerName?: string) => {
         await addDoc(collection(db, 'games', gameState.gameId, 'attempts'), {
           input: gameState.userInput,
           result: newResult,
-          timestamp: serverTimestamp(),
-          playerName: gameState.playerName
+          timestamp: serverTimestamp()
         });
         
         // 게임 상태 업데이트
