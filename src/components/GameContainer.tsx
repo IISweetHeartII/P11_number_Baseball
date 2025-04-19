@@ -2,134 +2,112 @@ import React from 'react';
 import { useGameState } from '../hooks/useGameState';
 import RoomEntry from './RoomEntry';
 import GameForm from './GameForm';
+import OpponentView from './OpponentView';
 
 const GameContainer: React.FC = () => {
-  const {
-    userId,
-    gameState,
-    showRoomEntry,
-    setShowRoomEntry,
-    createRoom,
-    joinRoom,
-    setMyNumber,
-    handleGuess,
-    getGameStatus,
-    showAnswer,
-    resetGame
-  } = useGameState();
-
+  const { gameState, userId, handleGuess, setMyNumber, showAnswer, resetGame, showRoomEntry, createRoom, joinRoom } = useGameState();
+  
   if (showRoomEntry || !gameState) {
     return <RoomEntry onCreateRoom={createRoom} onJoinRoom={joinRoom} />;
   }
 
-  const amIPlayer1 = gameState.player1.id === userId;
-  const myHistory = amIPlayer1 ? gameState.player1.history : gameState.player2?.history || [];
-  const isMyTurn = gameState.currentPlayer === userId;
+  const isPlayer1 = gameState.player1.id === userId;
+  const currentPlayer = isPlayer1 ? gameState.player1 : gameState.player2;
+  const opponent = isPlayer1 ? gameState.player2 : gameState.player1;
+
+  if (!currentPlayer) return null;
+
+  // 상대방이 아직 입장하지 않은 경우
+  if (!opponent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-lg text-center">
+          <h2 className="text-2xl font-bold mb-4">방 번호: {gameState.roomCode}</h2>
+          <p className="text-gray-600 mb-4">상대방이 입장할 때까지 기다려주세요...</p>
+          <button
+            onClick={() => resetGame()}
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >
+            방 나가기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4">
-      <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6">
-          {/* 헤더 영역 */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">
-              {amIPlayer1 ? "Player 1" : "Player 2"}
-            </h2>
-            <button
-              onClick={() => {
-                resetGame();
-                setShowRoomEntry(true);
-              }}
-              className="text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-4 flex justify-between items-center">
+          <h2 className="text-xl font-bold">방 번호: {gameState.roomCode}</h2>
+          <div className="text-gray-600">
+            {gameState.currentPlayer === userId ? '당신의 차례입니다!' : '상대방의 차례입니다.'}
           </div>
+        </div>
 
-          {/* 게임 상태 메시지 */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <p className="text-center text-gray-700 font-medium">
-              {getGameStatus()}
-            </p>
-          </div>
-
-          {/* 게임 폼 */}
-          {gameState.gameStatus === 'setting_numbers' && (
-            <div className="mb-6">
-              <GameForm
-                type="number"
-                onSubmit={setMyNumber}
-                disabled={
-                  (amIPlayer1 && gameState.player1.number) ||
-                  (!amIPlayer1 && gameState.player2?.number)
-                }
-                placeholder="숫자를 입력하세요"
-                buttonText="숫자 설정"
-              />
-            </div>
-          )}
-
-          {gameState.gameStatus === 'playing' && (
-            <div className="mb-6">
-              <GameForm
-                type="guess"
-                onSubmit={handleGuess}
-                disabled={!isMyTurn}
-                placeholder="상대방 숫자를 맞춰보세요"
-                buttonText="확인"
-              />
-            </div>
-          )}
-
-          {/* 게임 히스토리 */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">나의 기록</h3>
-            <div className="bg-gray-50 rounded-lg p-4">
-              {myHistory.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-xl font-bold mb-4">나의 게임</h2>
+            {currentPlayer.number ? (
+              <div className="space-y-4">
+                <GameForm 
+                  onSubmit={handleGuess}
+                  disabled={gameState.currentPlayer !== userId}
+                  placeholder="상대방의 숫자를 맞춰보세요"
+                  buttonText="확인"
+                />
                 <div className="space-y-2">
-                  {myHistory.map((entry, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-white rounded shadow-sm">
-                      <span className="font-medium text-gray-700">{entry.guess}</span>
-                      <span className="text-sm text-gray-500">{entry.result}</span>
+                  {currentPlayer.history.map((attempt, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="font-mono">{attempt.guess}</span>
+                      <span className="text-sm text-gray-600">{attempt.result}</span>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-center text-gray-500">아직 기록이 없습니다</p>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">4자리 숫자를 설정해주세요</h3>
+                <p className="text-sm text-gray-600">각 자리는 서로 다른 숫자여야 합니다.</p>
+                <GameForm 
+                  onSubmit={setMyNumber}
+                  placeholder="4자리 숫자를 입력하세요"
+                  buttonText="숫자 설정"
+                />
+              </div>
+            )}
           </div>
-
-          {/* 게임 종료 */}
-          {gameState.isGameOver && (
-            <div className="mt-6 text-center">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">게임 종료!</h3>
-              {!gameState.showAnswer ? (
-                <button
-                  onClick={showAnswer}
-                  className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors mb-4"
-                >
-                  정답 확인하기
-                </button>
-              ) : (
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <p className="text-lg text-gray-700">
-                    상대방의 정답: {amIPlayer1 ? gameState.player2?.number : gameState.player1.number}
-                  </p>
-                </div>
-              )}
-              <button
-                onClick={() => setShowRoomEntry(true)}
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                새 게임 시작
-              </button>
-            </div>
-          )}
         </div>
+        
+        {gameState.isGameOver && (
+          <div className="mt-4 text-center">
+            <p className="text-lg font-semibold mb-2">
+              {gameState.winner === userId ? '축하합니다! 승리하셨습니다!' : '아쉽게도 패배하셨습니다.'}
+            </p>
+            {!currentPlayer.showAnswer && (
+              <button
+                onClick={showAnswer}
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2"
+              >
+                정답 확인하기
+              </button>
+            )}
+            {currentPlayer.showAnswer && opponent && (
+              <div className="mt-2">
+                <p className="text-gray-600">상대방의 정답: {opponent.number}</p>
+              </div>
+            )}
+            <button
+              onClick={resetGame}
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
+            >
+              새 게임 시작
+            </button>
+          </div>
+        )}
       </div>
+
+      <OpponentView gameState={gameState} userId={userId} />
     </div>
   );
 };

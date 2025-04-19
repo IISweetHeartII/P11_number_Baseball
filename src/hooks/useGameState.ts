@@ -12,6 +12,7 @@ export interface GameState {
       guess: string;
       result: string;
     }>;
+    showAnswer: boolean;
   };
   player2: {
     id: string;
@@ -20,12 +21,13 @@ export interface GameState {
       guess: string;
       result: string;
     }>;
+    showAnswer: boolean;
   } | null;
   currentPlayer: string;
   gameStatus: 'waiting' | 'setting_numbers' | 'playing' | 'finished';
   attempts: number;
   isGameOver: boolean;
-  showAnswer: boolean;
+  winner: string | null;
 }
 
 export interface GameSettings {
@@ -36,7 +38,6 @@ export interface GameSettings {
 export const useGameState = () => {
   const [userId, setUserId] = useState<string>('');
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [showSettings, setShowSettings] = useState(true);
   const [showRoomEntry, setShowRoomEntry] = useState(false);
 
   useEffect(() => {
@@ -54,18 +55,19 @@ export const useGameState = () => {
     const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
     const newGameState: GameState = {
       roomCode,
-      digitCount: 3,
+      digitCount: 4,
       player1: {
         id: userId,
         number: '',
-        history: []
+        history: [],
+        showAnswer: false
       },
       player2: null,
       currentPlayer: userId,
       gameStatus: 'waiting',
       attempts: 0,
       isGameOver: false,
-      showAnswer: false
+      winner: null
     };
 
     await setDoc(doc(db, 'games', roomCode), newGameState);
@@ -89,7 +91,8 @@ export const useGameState = () => {
         player2: {
           id: userId,
           number: '',
-          history: []
+          history: [],
+          showAnswer: false
         },
         gameStatus: 'setting_numbers'
       };
@@ -133,35 +136,6 @@ export const useGameState = () => {
     });
   };
 
-  const startGame = async (settings: GameSettings) => {
-    if (!gameState) return;
-
-    const targetNumber = settings.isRandom
-      ? generateRandomNumber(settings.digitCount)
-      : '';
-
-    const gameRef = doc(db, 'games', gameState.roomCode);
-    await updateDoc(gameRef, {
-      digitCount: settings.digitCount,
-      targetNumber,
-      isGameOver: false,
-      attempts: 0,
-      'player1.history': [],
-      'player2.history': []
-    });
-
-    setGameState(prev => prev ? {
-      ...prev,
-      digitCount: settings.digitCount,
-      targetNumber,
-      isGameOver: false,
-      attempts: 0,
-      'player1.history': [],
-      'player2.history': []
-    } : null);
-    setShowSettings(false);
-  };
-
   const handleGuess = async (guess: string) => {
     if (!gameState || gameState.isGameOver || !validateNumber(guess, gameState.digitCount)) return;
 
@@ -188,6 +162,7 @@ export const useGameState = () => {
     };
 
     const isGameOver = strikes === gameState.digitCount;
+    const winner = isGameOver ? userId : null;
 
     const gameRef = doc(db, 'games', gameState.roomCode);
     await updateDoc(gameRef, {
@@ -198,7 +173,8 @@ export const useGameState = () => {
       currentPlayer: isGameOver ? gameState.currentPlayer : (gameState.currentPlayer === gameState.player1.id ? gameState.player2?.id : gameState.player1.id),
       isGameOver: isGameOver,
       gameStatus: isGameOver ? 'finished' : 'playing',
-      showAnswer: false
+      winner: winner,
+      ...(isPlayer1 ? { 'player1.showAnswer': false } : { 'player2.showAnswer': false })
     });
   };
 
@@ -206,8 +182,13 @@ export const useGameState = () => {
     if (!gameState || !gameState.isGameOver) return;
     
     const gameRef = doc(db, 'games', gameState.roomCode);
+    const isPlayer1 = gameState.player1.id === userId;
+    
     await updateDoc(gameRef, {
-      showAnswer: true
+      ...(isPlayer1 
+        ? { 'player1.showAnswer': true }
+        : { 'player2.showAnswer': true }
+      )
     });
   };
 
@@ -219,12 +200,14 @@ export const useGameState = () => {
       gameStatus: 'waiting',
       'player1.number': '',
       'player1.history': [],
+      'player1.showAnswer': false,
       'player2.number': '',
       'player2.history': [],
+      'player2.showAnswer': false,
       currentPlayer: gameState.player1.id,
       isGameOver: false,
-      showAnswer: false,
-      attempts: 0
+      attempts: 0,
+      winner: null
     });
   };
 
@@ -268,7 +251,6 @@ export const useGameState = () => {
   return {
     userId,
     gameState,
-    showSettings,
     showRoomEntry,
     setShowRoomEntry,
     createRoom,
